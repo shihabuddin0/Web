@@ -10,9 +10,14 @@ import androidx.appcompat.app.AppCompatActivity
 import org.json.JSONArray
 import org.json.JSONObject
 
-data class Account(val name: String, val url: String)
+data class Account(
+    val id: String,
+    val name: String,
+    val url: String
+)
 
 class MainActivity : AppCompatActivity() {
+
     private val accounts = mutableListOf<Account>()
     private lateinit var listLayout: LinearLayout
 
@@ -26,6 +31,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showHome() {
+
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(24, 24, 24, 24)
@@ -40,37 +46,43 @@ class MainActivity : AppCompatActivity() {
 
         val add = Button(this).apply {
             text = "+ Add Account"
-            setOnClickListener { showAddDialog() }
+            setOnClickListener {
+                showAddDialog()
+            }
         }
 
         listLayout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
         }
 
-        root.addView(title, LinearLayout.LayoutParams(-1, -2))
-        root.addView(add, LinearLayout.LayoutParams(-1, -2))
-        root.addView(listLayout, LinearLayout.LayoutParams(-1, 0, 1f))
+        root.addView(title)
+        root.addView(add)
+        root.addView(
+            listLayout,
+            LinearLayout.LayoutParams(-1, 0, 1f)
+        )
 
         setContentView(root)
+
         loadAccounts()
         refreshList()
     }
 
     private fun showAddDialog() {
+
         val box = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(32, 8, 32, 0)
         }
 
-        val name = EditText(this).apply {
-            hint = "Account name"
-        }
+        val name = EditText(this)
+        name.hint = "Account name"
 
-        val url = EditText(this).apply {
-            hint = "https://example.com"
-            inputType = android.text.InputType.TYPE_CLASS_TEXT or
-                    android.text.InputType.TYPE_TEXT_VARIATION_URI
-        }
+        val url = EditText(this)
+        url.hint = "https://example.com"
+        url.inputType =
+            android.text.InputType.TYPE_CLASS_TEXT or
+            android.text.InputType.TYPE_TEXT_VARIATION_URI
 
         box.addView(name)
         box.addView(url)
@@ -80,19 +92,40 @@ class MainActivity : AppCompatActivity() {
             .setView(box)
             .setNegativeButton("Cancel", null)
             .setPositiveButton("Save") { _, _ ->
-                val n = name.text.toString().trim()
-                var u = url.text.toString().trim()
 
-                if (n.isEmpty() || u.isEmpty()) {
-                    Toast.makeText(this, "Name and URL are required", Toast.LENGTH_SHORT).show()
+                val accountName =
+                    name.text.toString().trim()
+
+                var accountUrl =
+                    url.text.toString().trim()
+
+                if (accountName.isEmpty() ||
+                    accountUrl.isEmpty()) {
+
+                    Toast.makeText(
+                        this,
+                        "Name and URL are required",
+                        Toast.LENGTH_SHORT
+                    ).show()
+
                     return@setPositiveButton
                 }
 
-                if (!u.startsWith("http://") && !u.startsWith("https://")) {
-                    u = "https://$u"
+                if (!accountUrl.startsWith("http://") &&
+                    !accountUrl.startsWith("https://")) {
+
+                    accountUrl =
+                        "https://$accountUrl"
                 }
 
-                accounts.add(Account(n, u))
+                val account = Account(
+                    id = System.currentTimeMillis().toString(),
+                    name = accountName,
+                    url = accountUrl
+                )
+
+                accounts.add(account)
+
                 saveAccounts()
                 refreshList()
             }
@@ -100,35 +133,63 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun refreshList() {
+
         listLayout.removeAllViews()
 
-        accounts.forEachIndexed { index, account ->
+        accounts.forEach { account ->
+
             val row = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
                 setPadding(0, 8, 0, 8)
             }
 
-            val open = Button(this).apply {
+            val openButton = Button(this).apply {
+
                 text = account.name
+
                 setOnClickListener {
-                    startActivity(
-                        Intent(this@MainActivity, WebViewActivity::class.java)
-                            .putExtra("url", account.url)
-                            .putExtra("profile_id", index)
+
+                    val intent = Intent(
+                        this@MainActivity,
+                        WebViewActivity::class.java
                     )
+
+                    intent.putExtra(
+                        "url",
+                        account.url
+                    )
+
+                    intent.putExtra(
+                        "profile_id",
+                        account.id
+                    )
+
+                    startActivity(intent)
                 }
             }
 
-            val delete = Button(this).apply {
+            val deleteButton = Button(this).apply {
+
                 text = "Delete"
+
                 setOnClickListener {
+
                     AlertDialog.Builder(this@MainActivity)
                         .setTitle("Delete Account")
-                        .setMessage("Delete ${account.name}?")
-                        .setNegativeButton("Cancel", null)
-                        .setPositiveButton("Delete") { _, _ ->
-                            accounts.removeAt(index)
+                        .setMessage(
+                            "Delete ${account.name}?"
+                        )
+                        .setNegativeButton(
+                            "Cancel",
+                            null
+                        )
+                        .setPositiveButton(
+                            "Delete"
+                        ) { _, _ ->
+
+                            accounts.remove(account)
+
                             saveAccounts()
                             refreshList()
                         }
@@ -136,31 +197,78 @@ class MainActivity : AppCompatActivity() {
                 }
             }
 
-            row.addView(open, LinearLayout.LayoutParams(0, -2, 1f))
-            row.addView(delete, LinearLayout.LayoutParams(-2, -2))
+            row.addView(
+                openButton,
+                LinearLayout.LayoutParams(
+                    0,
+                    -2,
+                    1f
+                )
+            )
+
+            row.addView(
+                deleteButton,
+                LinearLayout.LayoutParams(
+                    -2,
+                    -2
+                )
+            )
+
             listLayout.addView(row)
         }
     }
 
     private fun saveAccounts() {
-        val arr = JSONArray()
+
+        val array = JSONArray()
+
         accounts.forEach {
-            arr.put(JSONObject().apply {
-                put("name", it.name)
-                put("url", it.url)
-            })
+
+            val obj = JSONObject()
+
+            obj.put("id", it.id)
+            obj.put("name", it.name)
+            obj.put("url", it.url)
+
+            array.put(obj)
         }
-        prefs.edit().putString("list", arr.toString()).apply()
+
+        prefs.edit()
+            .putString(
+                "list",
+                array.toString()
+            )
+            .apply()
     }
 
     private fun loadAccounts() {
-        accounts.clear()
-        val raw = prefs.getString("list", "[]") ?: "[]"
-        val arr = JSONArray(raw)
 
-        for (i in 0 until arr.length()) {
-            val obj = arr.getJSONObject(i)
-            accounts.add(Account(obj.getString("name"), obj.getString("url")))
+        accounts.clear()
+
+        val raw =
+            prefs.getString("list", "[]")
+                ?: "[]"
+
+        val array = JSONArray(raw)
+
+        for (i in 0 until array.length()) {
+
+            val obj =
+                array.getJSONObject(i)
+
+            val id =
+                obj.optString(
+                    "id",
+                    "legacy_$i"
+                )
+
+            accounts.add(
+                Account(
+                    id,
+                    obj.getString("name"),
+                    obj.getString("url")
+                )
+            )
         }
     }
 }
