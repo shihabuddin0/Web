@@ -1,33 +1,44 @@
-name: Build APK
+name: Download, Unzip and Replace Files
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
-      - name: Checkout
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Setup JDK
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-
-      - name: Make gradlew executable
-        run: chmod +x gradlew
-
-      - name: Build APK
-        run: ./gradlew assembleDebug
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: MultiProfileWebView-APK
-          path: app/build/outputs/apk/debug/app-debug.apk
+      - name: Download Zip File
+        run: |
+          wget -O temp_file.zip "https://www.dropbox.com/scl/fi/p799se35v9rp7jr24mw4p/MultiProfileWebView_GitHub_Project.zip?rlkey=8x0vrwjh8ksnl3du8803j8r7z&st=jh7mz0xc&dl=1"
+      - name: Unzip File
+        run: |
+          mkdir temp
+          unzip temp_file.zip -d temp/
+      - name: Replace Files (Super Safe Method)
+        run: |
+          # Bash er advance feature on kora holo
+          shopt -s extglob dotglob
+          
+          echo "Cleaning old repo files..."
+          # Ekti command ei .git, .github, temp, ar temp_file.zip chara baki shob delete korbe (Kono error charai)
+          rm -rf !(.git|.github|temp|temp_file.zip)
+          
+          echo "Copying new files from temp to root..."
+          cp -r temp/* . || true
+          
+          echo "Cleaning up temp folder and zip..."
+          rm -rf temp temp_file.zip
+      - name: Commit and Push Changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git add .
+          git commit -m "Auto-update: Files extracted from zip" || echo "No changes to commit"
+          git push
