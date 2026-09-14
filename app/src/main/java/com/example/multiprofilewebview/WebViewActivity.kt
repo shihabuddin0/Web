@@ -7,10 +7,10 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Button
 import android.widget.LinearLayout
-import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
+import org.json.JSONArray
 
 class WebViewActivity : AppCompatActivity() {
 
@@ -18,25 +18,13 @@ class WebViewActivity : AppCompatActivity() {
 
     private lateinit var previousButton: Button
     private lateinit var nextButton: Button
-    private lateinit var pageTitle: Button
-
-    private var currentIndex = 0
+    private lateinit var titleButton: Button
 
     private val accounts = mutableListOf<Account>()
 
-    private val prefs by lazy {
-        getSharedPreferences(
-            "accounts",
-            MODE_PRIVATE
-        )
-    }
+    private var currentIndex = 0
 
-    private val sharedProfile =
-        MainActivity.SHARED_PROFILE
-
-    override fun onCreate(
-        savedInstanceState: Bundle?
-    ) {
+    override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         loadAccounts()
@@ -48,7 +36,6 @@ class WebViewActivity : AppCompatActivity() {
             )
 
         if (accounts.isEmpty()) {
-
             finish()
             return
         }
@@ -63,12 +50,6 @@ class WebViewActivity : AppCompatActivity() {
                 WebViewFeature.MULTI_PROFILE
             )
         ) {
-
-            Toast.makeText(
-                this,
-                "Your Android WebView does not support separate profiles.",
-                Toast.LENGTH_LONG
-            ).show()
 
             finish()
             return
@@ -85,25 +66,24 @@ class WebViewActivity : AppCompatActivity() {
         webView = WebView(this)
 
         /*
-         * IMPORTANT:
+         * Every Page has its OWN profile.
          *
-         * Every Facebook Page uses the SAME
-         * WebView profile.
-         *
-         * Therefore Facebook login session
-         * is shared between the Pages.
+         * The profile ID is permanent,
+         * so its cookies/storage remain attached
+         * to that Page.
          */
+        val profileId =
+            accounts[currentIndex].id
+
         WebViewCompat.setProfile(
             webView,
-            sharedProfile
+            "facebook_$profileId"
         )
 
         webView.settings.apply {
 
             javaScriptEnabled = true
-
             domStorageEnabled = true
-
             databaseEnabled = true
 
             loadsImagesAutomatically = true
@@ -111,14 +91,12 @@ class WebViewActivity : AppCompatActivity() {
             cacheMode =
                 android.webkit.WebSettings.LOAD_DEFAULT
 
-            setSupportZoom(false)
-
-            builtInZoomControls = false
-
-            displayZoomControls = false
-
             javaScriptCanOpenWindowsAutomatically =
                 true
+
+            setSupportZoom(false)
+            builtInZoomControls = false
+            displayZoomControls = false
         }
 
         webView.webViewClient =
@@ -133,13 +111,12 @@ class WebViewActivity : AppCompatActivity() {
 
         val root =
             LinearLayout(this).apply {
-
                 orientation =
                     LinearLayout.VERTICAL
             }
 
         /*
-         * TOP BAR
+         * TOP NAVIGATION
          */
         val topBar =
             LinearLayout(this).apply {
@@ -157,26 +134,16 @@ class WebViewActivity : AppCompatActivity() {
                 text = "←"
 
                 setOnClickListener {
-
                     goPrevious()
                 }
             }
 
-        pageTitle =
+        titleButton =
             Button(this).apply {
-
-                text = "Page"
 
                 isAllCaps = false
 
-                setOnClickListener {
-
-                    /*
-                     * Pressing page name also
-                     * opens the current page again.
-                     */
-                    loadCurrentPage()
-                }
+                text = "Page"
             }
 
         nextButton =
@@ -185,7 +152,6 @@ class WebViewActivity : AppCompatActivity() {
                 text = "→"
 
                 setOnClickListener {
-
                     goNext()
                 }
             }
@@ -199,7 +165,7 @@ class WebViewActivity : AppCompatActivity() {
         )
 
         topBar.addView(
-            pageTitle,
+            titleButton,
             LinearLayout.LayoutParams(
                 0,
                 -2,
@@ -223,9 +189,6 @@ class WebViewActivity : AppCompatActivity() {
 
                 orientation =
                     LinearLayout.HORIZONTAL
-
-                gravity =
-                    Gravity.CENTER_VERTICAL
             }
 
         val homeButton =
@@ -234,10 +197,6 @@ class WebViewActivity : AppCompatActivity() {
                 text = "HOME"
 
                 setOnClickListener {
-
-                    /*
-                     * Return to MainActivity.
-                     */
                     finish()
                 }
             }
@@ -248,7 +207,6 @@ class WebViewActivity : AppCompatActivity() {
                 text = "REFRESH"
 
                 setOnClickListener {
-
                     webView.reload()
                 }
             }
@@ -271,21 +229,8 @@ class WebViewActivity : AppCompatActivity() {
             )
         )
 
-        root.addView(
-            topBar,
-            LinearLayout.LayoutParams(
-                -1,
-                -2
-            )
-        )
-
-        root.addView(
-            bottomBar,
-            LinearLayout.LayoutParams(
-                -1,
-                -2
-            )
-        )
+        root.addView(topBar)
+        root.addView(bottomBar)
 
         root.addView(
             webView,
@@ -301,21 +246,90 @@ class WebViewActivity : AppCompatActivity() {
 
     private fun loadCurrentPage() {
 
-        if (accounts.isEmpty()) {
+        if (currentIndex < 0 ||
+            currentIndex >= accounts.size
+        ) {
             return
         }
 
         val account =
             accounts[currentIndex]
 
-        pageTitle.text =
+        titleButton.text =
             "${currentIndex + 1}. ${account.name}"
 
-        webView.loadUrl(
-            account.url
+        /*
+         * IMPORTANT:
+         *
+         * Switching Page changes profile.
+         * The current WebView must be recreated
+         * with the selected profile.
+         */
+        recreateWebViewForCurrentPage()
+
+        updateButtons()
+    }
+
+    private fun recreateWebViewForCurrentPage() {
+
+        val oldWebView = webView
+
+        val parent =
+            oldWebView.parent as? LinearLayout
+
+        parent?.removeView(oldWebView)
+
+        oldWebView.stopLoading()
+        oldWebView.destroy()
+
+        webView = WebView(this)
+
+        val profileId =
+            accounts[currentIndex].id
+
+        WebViewCompat.setProfile(
+            webView,
+            "facebook_$profileId"
         )
 
-        updateNavigationButtons()
+        webView.settings.apply {
+
+            javaScriptEnabled = true
+            domStorageEnabled = true
+            databaseEnabled = true
+
+            loadsImagesAutomatically = true
+
+            cacheMode =
+                android.webkit.WebSettings.LOAD_DEFAULT
+
+            javaScriptCanOpenWindowsAutomatically =
+                true
+
+            setSupportZoom(false)
+            builtInZoomControls = false
+            displayZoomControls = false
+        }
+
+        webView.webViewClient =
+            WebViewClient()
+
+        CookieManager
+            .getInstance()
+            .setAcceptCookie(true)
+
+        parent?.addView(
+            webView,
+            LinearLayout.LayoutParams(
+                -1,
+                0,
+                1f
+            )
+        )
+
+        webView.loadUrl(
+            accounts[currentIndex].url
+        )
     }
 
     private fun goPrevious() {
@@ -330,7 +344,9 @@ class WebViewActivity : AppCompatActivity() {
 
     private fun goNext() {
 
-        if (currentIndex < accounts.size - 1) {
+        if (currentIndex <
+            accounts.size - 1
+        ) {
 
             currentIndex++
 
@@ -338,7 +354,7 @@ class WebViewActivity : AppCompatActivity() {
         }
     }
 
-    private fun updateNavigationButtons() {
+    private fun updateButtons() {
 
         previousButton.isEnabled =
             currentIndex > 0
@@ -353,13 +369,16 @@ class WebViewActivity : AppCompatActivity() {
         accounts.clear()
 
         val raw =
-            prefs.getString(
+            getSharedPreferences(
+                "accounts",
+                MODE_PRIVATE
+            ).getString(
                 "list",
                 "[]"
             ) ?: "[]"
 
         val array =
-            org.json.JSONArray(raw)
+            JSONArray(raw)
 
         for (i in 0 until array.length()) {
 
@@ -370,14 +389,12 @@ class WebViewActivity : AppCompatActivity() {
                 Account(
                     id = obj.optString(
                         "id",
-                        "page_$i"
+                        "profile_$i"
                     ),
-
                     name = obj.optString(
                         "name",
                         "Page ${i + 1}"
                     ),
-
                     url = obj.optString(
                         "url",
                         "https://www.facebook.com/"
@@ -390,11 +407,8 @@ class WebViewActivity : AppCompatActivity() {
     override fun onBackPressed() {
 
         if (webView.canGoBack()) {
-
             webView.goBack()
-
         } else {
-
             super.onBackPressed()
         }
     }
@@ -404,7 +418,6 @@ class WebViewActivity : AppCompatActivity() {
         if (::webView.isInitialized) {
 
             webView.stopLoading()
-
             webView.destroy()
         }
 
