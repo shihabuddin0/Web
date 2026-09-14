@@ -1,6 +1,5 @@
 package com.example.multiprofilewebview
 
-
 import android.os.Bundle
 import android.view.Gravity
 import android.webkit.CookieManager
@@ -8,6 +7,7 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Button
 import android.widget.LinearLayout
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
@@ -21,12 +21,18 @@ class WebViewActivity : AppCompatActivity() {
     private lateinit var nextButton: Button
     private lateinit var titleButton: Button
 
-    private val accounts = mutableListOf<Account>()
+    private val accounts =
+        mutableListOf<Account>()
 
     private var currentIndex = 0
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
+    override fun onCreate(
+        savedInstanceState: Bundle?
+    ) {
+
+        super.onCreate(
+            savedInstanceState
+        )
 
         loadAccounts()
 
@@ -37,57 +43,95 @@ class WebViewActivity : AppCompatActivity() {
             )
 
         if (accounts.isEmpty()) {
+
             finish()
             return
         }
 
-        if (currentIndex < 0 ||
+        if (
+            currentIndex < 0 ||
             currentIndex >= accounts.size
         ) {
+
             currentIndex = 0
         }
 
-        if (!WebViewFeature.isFeatureSupported(
+        if (
+            !WebViewFeature.isFeatureSupported(
                 WebViewFeature.MULTI_PROFILE
             )
         ) {
+
+            Toast.makeText(
+                this,
+                "Your Android WebView does not support separate profiles.",
+                Toast.LENGTH_LONG
+            ).show()
 
             finish()
             return
         }
 
         createWebView()
+
         createLayout()
 
         loadCurrentPage()
     }
 
+    // =========================================================
+    // CREATE WEBVIEW
+    // =========================================================
+
     private fun createWebView() {
 
-        webView = WebView(this)
+        webView =
+            WebView(this)
 
-        /*
-         * Every Page has its OWN profile.
-         *
-         * The profile ID is permanent,
-         * so its cookies/storage remain attached
-         * to that Page.
-         */
         val profileId =
             accounts[currentIndex].id
 
+        /*
+         * IMPORTANT:
+         *
+         * Keep the SAME profile naming style
+         * used by the previous version:
+         *
+         * account_profile_xxx
+         *
+         * This helps preserve old logged-in
+         * WebView profiles after updating the app.
+         */
+        val profileName =
+            "account_profile_$profileId"
+
         WebViewCompat.setProfile(
             webView,
-            "facebook_$profileId"
+            profileName
         )
+
+        configureWebView()
+    }
+
+    // =========================================================
+    // WEBVIEW SETTINGS
+    // =========================================================
+
+    private fun configureWebView() {
 
         webView.settings.apply {
 
-            javaScriptEnabled = true
-            domStorageEnabled = true
-            databaseEnabled = true
+            javaScriptEnabled =
+                true
 
-            loadsImagesAutomatically = true
+            domStorageEnabled =
+                true
+
+            databaseEnabled =
+                true
+
+            loadsImagesAutomatically =
+                true
 
             cacheMode =
                 android.webkit.WebSettings.LOAD_DEFAULT
@@ -95,9 +139,15 @@ class WebViewActivity : AppCompatActivity() {
             javaScriptCanOpenWindowsAutomatically =
                 true
 
-            setSupportZoom(false)
-            builtInZoomControls = false
-            displayZoomControls = false
+            setSupportZoom(
+                false
+            )
+
+            builtInZoomControls =
+                false
+
+            displayZoomControls =
+                false
         }
 
         webView.webViewClient =
@@ -105,20 +155,28 @@ class WebViewActivity : AppCompatActivity() {
 
         CookieManager
             .getInstance()
-            .setAcceptCookie(true)
+            .setAcceptCookie(
+                true
+            )
     }
+
+    // =========================================================
+    // CREATE UI
+    // =========================================================
 
     private fun createLayout() {
 
         val root =
             LinearLayout(this).apply {
+
                 orientation =
                     LinearLayout.VERTICAL
             }
 
-        /*
-         * TOP NAVIGATION
-         */
+        // -----------------------------------------------------
+        // TOP BAR
+        // -----------------------------------------------------
+
         val topBar =
             LinearLayout(this).apply {
 
@@ -132,9 +190,11 @@ class WebViewActivity : AppCompatActivity() {
         previousButton =
             Button(this).apply {
 
-                text = "←"
+                text =
+                    "←"
 
                 setOnClickListener {
+
                     goPrevious()
                 }
             }
@@ -142,31 +202,42 @@ class WebViewActivity : AppCompatActivity() {
         titleButton =
             Button(this).apply {
 
-                isAllCaps = false
+                isAllCaps =
+                    false
 
-                text = "Page"
+                text =
+                    "Page"
+
+                isClickable =
+                    false
             }
 
         nextButton =
             Button(this).apply {
 
-                text = "→"
+                text =
+                    "→"
 
                 setOnClickListener {
+
                     goNext()
                 }
             }
 
         topBar.addView(
+
             previousButton,
+
             LinearLayout.LayoutParams(
-                70,
+                65,
                 -2
             )
         )
 
         topBar.addView(
+
             titleButton,
+
             LinearLayout.LayoutParams(
                 0,
                 -2,
@@ -175,29 +246,37 @@ class WebViewActivity : AppCompatActivity() {
         )
 
         topBar.addView(
+
             nextButton,
+
             LinearLayout.LayoutParams(
-                70,
+                65,
                 -2
             )
         )
 
-        /*
-         * SECOND BAR
-         */
+        // -----------------------------------------------------
+        // SECOND BAR
+        // -----------------------------------------------------
+
         val bottomBar =
             LinearLayout(this).apply {
 
                 orientation =
                     LinearLayout.HORIZONTAL
+
+                gravity =
+                    Gravity.CENTER_VERTICAL
             }
 
         val homeButton =
             Button(this).apply {
 
-                text = "HOME"
+                text =
+                    "HOME"
 
                 setOnClickListener {
+
                     finish()
                 }
             }
@@ -205,15 +284,19 @@ class WebViewActivity : AppCompatActivity() {
         val refreshButton =
             Button(this).apply {
 
-                text = "REFRESH"
+                text =
+                    "REFRESH"
 
                 setOnClickListener {
+
                     webView.reload()
                 }
             }
 
         bottomBar.addView(
+
             homeButton,
+
             LinearLayout.LayoutParams(
                 0,
                 -2,
@@ -222,7 +305,9 @@ class WebViewActivity : AppCompatActivity() {
         )
 
         bottomBar.addView(
+
             refreshButton,
+
             LinearLayout.LayoutParams(
                 0,
                 -2,
@@ -230,11 +315,30 @@ class WebViewActivity : AppCompatActivity() {
             )
         )
 
-        root.addView(topBar)
-        root.addView(bottomBar)
+        // -----------------------------------------------------
+        // ADD EVERYTHING
+        // -----------------------------------------------------
 
         root.addView(
+            topBar,
+            LinearLayout.LayoutParams(
+                -1,
+                -2
+            )
+        )
+
+        root.addView(
+            bottomBar,
+            LinearLayout.LayoutParams(
+                -1,
+                -2
+            )
+        )
+
+        root.addView(
+
             webView,
+
             LinearLayout.LayoutParams(
                 -1,
                 0,
@@ -242,12 +346,19 @@ class WebViewActivity : AppCompatActivity() {
             )
         )
 
-        setContentView(root)
+        setContentView(
+            root
+        )
     }
+
+    // =========================================================
+    // LOAD CURRENT PAGE
+    // =========================================================
 
     private fun loadCurrentPage() {
 
-        if (currentIndex < 0 ||
+        if (
+            currentIndex < 0 ||
             currentIndex >= accounts.size
         ) {
             return
@@ -259,68 +370,59 @@ class WebViewActivity : AppCompatActivity() {
         titleButton.text =
             "${currentIndex + 1}. ${account.name}"
 
-        /*
-         * IMPORTANT:
-         *
-         * Switching Page changes profile.
-         * The current WebView must be recreated
-         * with the selected profile.
-         */
         recreateWebViewForCurrentPage()
 
         updateButtons()
     }
 
+    // =========================================================
+    // CHANGE PROFILE
+    // =========================================================
+
     private fun recreateWebViewForCurrentPage() {
 
-        val oldWebView = webView
+        /*
+         * Remove old WebView
+         */
+        val oldWebView =
+            webView
 
         val parent =
-            oldWebView.parent as? LinearLayout
+            oldWebView.parent
+                    as? LinearLayout
 
-        parent?.removeView(oldWebView)
+        parent?.removeView(
+            oldWebView
+        )
 
         oldWebView.stopLoading()
+
         oldWebView.destroy()
 
-        webView = WebView(this)
+        /*
+         * Create new WebView
+         * for the selected profile.
+         */
+        webView =
+            WebView(this)
 
         val profileId =
             accounts[currentIndex].id
 
+        val profileName =
+            "account_profile_$profileId"
+
         WebViewCompat.setProfile(
             webView,
-            "facebook_$profileId"
+            profileName
         )
 
-        webView.settings.apply {
-
-            javaScriptEnabled = true
-            domStorageEnabled = true
-            databaseEnabled = true
-
-            loadsImagesAutomatically = true
-
-            cacheMode =
-                android.webkit.WebSettings.LOAD_DEFAULT
-
-            javaScriptCanOpenWindowsAutomatically =
-                true
-
-            setSupportZoom(false)
-            builtInZoomControls = false
-            displayZoomControls = false
-        }
-
-        webView.webViewClient =
-            WebViewClient()
-
-        CookieManager
-            .getInstance()
-            .setAcceptCookie(true)
+        configureWebView()
 
         parent?.addView(
+
             webView,
+
             LinearLayout.LayoutParams(
                 -1,
                 0,
@@ -333,6 +435,10 @@ class WebViewActivity : AppCompatActivity() {
         )
     }
 
+    // =========================================================
+    // PREVIOUS
+    // =========================================================
+
     private fun goPrevious() {
 
         if (currentIndex > 0) {
@@ -343,9 +449,14 @@ class WebViewActivity : AppCompatActivity() {
         }
     }
 
+    // =========================================================
+    // NEXT
+    // =========================================================
+
     private fun goNext() {
 
-        if (currentIndex <
+        if (
+            currentIndex <
             accounts.size - 1
         ) {
 
@@ -354,6 +465,10 @@ class WebViewActivity : AppCompatActivity() {
             loadCurrentPage()
         }
     }
+
+    // =========================================================
+    // ENABLE / DISABLE NAVIGATION
+    // =========================================================
 
     private fun updateButtons() {
 
@@ -365,6 +480,10 @@ class WebViewActivity : AppCompatActivity() {
                     accounts.size - 1
     }
 
+    // =========================================================
+    // LOAD ACCOUNTS
+    // =========================================================
+
     private fun loadAccounts() {
 
         accounts.clear()
@@ -373,52 +492,92 @@ class WebViewActivity : AppCompatActivity() {
             getSharedPreferences(
                 "accounts",
                 MODE_PRIVATE
-            ).getString(
-                "list",
-                "[]"
-            ) ?: "[]"
+            )
+                .getString(
+                    "list",
+                    "[]"
+                )
+                ?: "[]"
 
         val array =
             JSONArray(raw)
 
-        for (i in 0 until array.length()) {
+        for (
+            i in 0 until array.length()
+        ) {
 
             val obj =
                 array.getJSONObject(i)
 
-            accounts.add(
-                Account(
-                    id = obj.optString(
-                        "id",
-                        "profile_$i"
-                    ),
-                    name = obj.optString(
-                        "name",
-                        "Page ${i + 1}"
-                    ),
-                    url = obj.optString(
-                        "url",
-                        "https://www.facebook.com/"
+            val id =
+                if (obj.has("id")) {
+
+                    obj.optString(
+                        "id"
                     )
+
+                } else {
+
+                    /*
+                     * Old account compatibility.
+                     */
+                    "legacy_$i"
+                }
+
+            accounts.add(
+
+                Account(
+
+                    id =
+                        id,
+
+                    name =
+                        obj.optString(
+                            "name",
+                            "Page ${i + 1}"
+                        ),
+
+                    url =
+                        obj.optString(
+                            "url",
+                            "https://www.facebook.com/"
+                        )
                 )
             )
         }
     }
 
+    // =========================================================
+    // BACK BUTTON
+    // =========================================================
+
     override fun onBackPressed() {
 
-        if (webView.canGoBack()) {
+        if (
+            ::webView.isInitialized &&
+            webView.canGoBack()
+        ) {
+
             webView.goBack()
+
         } else {
+
             super.onBackPressed()
         }
     }
 
+    // =========================================================
+    // DESTROY
+    // =========================================================
+
     override fun onDestroy() {
 
-        if (::webView.isInitialized) {
+        if (
+            ::webView.isInitialized
+        ) {
 
             webView.stopLoading()
+
             webView.destroy()
         }
 
