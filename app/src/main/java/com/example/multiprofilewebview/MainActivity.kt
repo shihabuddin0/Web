@@ -12,8 +12,8 @@ import org.json.JSONObject
 
 data class Account(
     val id: String,
-    val name: String,
-    val url: String
+    var name: String,
+    var url: String
 )
 
 class MainActivity : AppCompatActivity() {
@@ -26,9 +26,14 @@ class MainActivity : AppCompatActivity() {
         getSharedPreferences("accounts", Context.MODE_PRIVATE)
     }
 
+    companion object {
+        const val SHARED_PROFILE = "facebook_shared_profile"
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        loadAccounts()
         showHome()
     }
 
@@ -40,17 +45,17 @@ class MainActivity : AppCompatActivity() {
         }
 
         val title = TextView(this).apply {
-            text = "My Web Profiles"
+            text = "My Facebook Pages"
             textSize = 24f
             gravity = Gravity.CENTER
             setPadding(0, 0, 0, 16)
         }
 
-        val add = Button(this).apply {
-            text = "+ Add Account"
+        val addButton = Button(this).apply {
+            text = "+ ADD PAGE"
 
             setOnClickListener {
-                showAddDialog()
+                showAddPageDialog()
             }
         }
 
@@ -61,23 +66,23 @@ class MainActivity : AppCompatActivity() {
         root.addView(
             title,
             LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
+                -1,
+                -2
             )
         )
 
         root.addView(
-            add,
+            addButton,
             LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
+                -1,
+                -2
             )
         )
 
         root.addView(
             listLayout,
             LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
+                -1,
                 0,
                 1f
             )
@@ -85,43 +90,118 @@ class MainActivity : AppCompatActivity() {
 
         setContentView(root)
 
-        loadAccounts()
         refreshList()
     }
 
-    private fun showAddDialog() {
+    private fun showAddPageDialog() {
 
         val box = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(32, 8, 32, 0)
         }
 
-        val name = EditText(this).apply {
-            hint = "Account name"
+        val nameInput = EditText(this).apply {
+            hint = "Page name"
         }
 
-        val url = EditText(this).apply {
-            hint = "https://example.com"
+        val urlInput = EditText(this).apply {
+            hint = "https://www.facebook.com/yourpage"
 
             inputType =
                 android.text.InputType.TYPE_CLASS_TEXT or
                         android.text.InputType.TYPE_TEXT_VARIATION_URI
         }
 
-        box.addView(name)
-        box.addView(url)
+        box.addView(nameInput)
+        box.addView(urlInput)
 
         AlertDialog.Builder(this)
-            .setTitle("Add Account")
+            .setTitle("Add Facebook Page")
             .setView(box)
-            .setNegativeButton("Cancel", null)
-            .setPositiveButton("Save") { _, _ ->
+            .setNegativeButton("CANCEL", null)
+            .setPositiveButton("SAVE") { _, _ ->
 
-                val n = name.text.toString().trim()
+                val name =
+                    nameInput.text.toString().trim()
 
-                var u = url.text.toString().trim()
+                var url =
+                    urlInput.text.toString().trim()
 
-                if (n.isEmpty() || u.isEmpty()) {
+                if (name.isEmpty() || url.isEmpty()) {
+
+                    Toast.makeText(
+                        this,
+                        "Page name and URL are required",
+                        Toast.LENGTH_SHORT
+                    ).show()
+
+                    return@setPositiveButton
+                }
+
+                if (!url.startsWith("http://") &&
+                    !url.startsWith("https://")
+                ) {
+                    url = "https://$url"
+                }
+
+                val newPage = Account(
+                    id = "page_" +
+                            System.currentTimeMillis(),
+                    name = name,
+                    url = url
+                )
+
+                accounts.add(newPage)
+
+                saveAccounts()
+                refreshList()
+            }
+            .show()
+    }
+
+    private fun showEditDialog(index: Int) {
+
+        val account = accounts[index]
+
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(32, 8, 32, 0)
+        }
+
+        val nameInput = EditText(this).apply {
+            hint = "Page name"
+            setText(account.name)
+            setSelection(text.length)
+        }
+
+        val urlInput = EditText(this).apply {
+            hint = "Page URL"
+            setText(account.url)
+            setSelection(text.length)
+
+            inputType =
+                android.text.InputType.TYPE_CLASS_TEXT or
+                        android.text.InputType.TYPE_TEXT_VARIATION_URI
+        }
+
+        box.addView(nameInput)
+        box.addView(urlInput)
+
+        AlertDialog.Builder(this)
+            .setTitle("Edit Page")
+            .setView(box)
+            .setNegativeButton("CANCEL", null)
+            .setPositiveButton("SAVE") { _, _ ->
+
+                val newName =
+                    nameInput.text.toString().trim()
+
+                var newUrl =
+                    urlInput.text.toString().trim()
+
+                if (newName.isEmpty() ||
+                    newUrl.isEmpty()
+                ) {
 
                     Toast.makeText(
                         this,
@@ -132,35 +212,16 @@ class MainActivity : AppCompatActivity() {
                     return@setPositiveButton
                 }
 
-                if (
-                    !u.startsWith("http://") &&
-                    !u.startsWith("https://")
+                if (!newUrl.startsWith("http://") &&
+                    !newUrl.startsWith("https://")
                 ) {
-                    u = "https://$u"
+                    newUrl = "https://$newUrl"
                 }
 
-                /*
-                 * IMPORTANT:
-                 *
-                 * এই ID-টাই ওই account-এর WebView profile-এর
-                 * permanent identity হবে।
-                 */
-                val permanentId =
-                    "profile_" + System.currentTimeMillis()
+                accounts[index].name = newName
+                accounts[index].url = newUrl
 
-                val account = Account(
-                    id = permanentId,
-                    name = n,
-                    url = u
-                )
-
-                accounts.add(account)
-
-                /*
-                 * ID সহ save করা হচ্ছে
-                 */
                 saveAccounts()
-
                 refreshList()
             }
             .show()
@@ -170,88 +231,66 @@ class MainActivity : AppCompatActivity() {
 
         listLayout.removeAllViews()
 
-        accounts.forEach { account ->
+        accounts.forEachIndexed { index, account ->
 
             val row = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
-                setPadding(0, 8, 0, 8)
+                setPadding(0, 6, 0, 6)
             }
 
-            val open = Button(this).apply {
+            val openButton = Button(this).apply {
 
-                text = account.name
+                text = "${index + 1}. ${account.name}"
 
                 setOnClickListener {
 
-                    val intent =
-                        Intent(
-                            this@MainActivity,
-                            WebViewActivity::class.java
-                        )
-
-                    intent.putExtra(
-                        "url",
-                        account.url
-                    )
-
-                    /*
-                     * একই ID প্রতিবার পাঠানো হবে।
-                     *
-                     * তাই একই WebView profile খুলবে।
-                     */
-                    intent.putExtra(
-                        "profile_id",
-                        account.id
-                    )
-
-                    startActivity(intent)
+                    openPage(index)
                 }
             }
 
-            val delete = Button(this).apply {
+            val editButton = Button(this).apply {
 
-                text = "Delete"
+                text = "EDIT"
 
                 setOnClickListener {
 
-                    AlertDialog.Builder(this@MainActivity)
-                        .setTitle("Delete Account")
-                        .setMessage(
-                            "Delete ${account.name}?"
-                        )
-                        .setNegativeButton(
-                            "Cancel",
-                            null
-                        )
-                        .setPositiveButton(
-                            "Delete"
-                        ) { _, _ ->
+                    showEditDialog(index)
+                }
+            }
 
-                            accounts.remove(account)
+            val deleteButton = Button(this).apply {
 
-                            saveAccounts()
+                text = "DELETE"
 
-                            refreshList()
-                        }
-                        .show()
+                setOnClickListener {
+
+                    confirmDelete(index)
                 }
             }
 
             row.addView(
-                open,
+                openButton,
                 LinearLayout.LayoutParams(
                     0,
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    -2,
                     1f
                 )
             )
 
             row.addView(
-                delete,
+                editButton,
                 LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
+                    -2,
+                    -2
+                )
+            )
+
+            row.addView(
+                deleteButton,
+                LinearLayout.LayoutParams(
+                    -2,
+                    -2
                 )
             )
 
@@ -259,40 +298,86 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun openPage(index: Int) {
+
+        if (index < 0 ||
+            index >= accounts.size
+        ) {
+            return
+        }
+
+        startActivity(
+            Intent(
+                this,
+                WebViewActivity::class.java
+            )
+                .putExtra(
+                    "page_index",
+                    index
+                )
+                .putExtra(
+                    "profile_id",
+                    SHARED_PROFILE
+                )
+        )
+    }
+
+    private fun confirmDelete(index: Int) {
+
+        val account = accounts[index]
+
+        AlertDialog.Builder(this)
+            .setTitle("Delete Page")
+            .setMessage(
+                "Delete ${account.name}?"
+            )
+            .setNegativeButton(
+                "CANCEL",
+                null
+            )
+            .setPositiveButton(
+                "DELETE"
+            ) { _, _ ->
+
+                accounts.removeAt(index)
+
+                saveAccounts()
+                refreshList()
+            }
+            .show()
+    }
+
     private fun saveAccounts() {
 
-        val arr = JSONArray()
+        val array = JSONArray()
 
         accounts.forEach { account ->
 
-            val obj = JSONObject()
+            array.put(
+                JSONObject().apply {
 
-            /*
-             * সবচেয়ে গুরুত্বপূর্ণ অংশ:
-             * ID এখন permanent ভাবে save হচ্ছে।
-             */
-            obj.put(
-                "id",
-                account.id
+                    put(
+                        "id",
+                        account.id
+                    )
+
+                    put(
+                        "name",
+                        account.name
+                    )
+
+                    put(
+                        "url",
+                        account.url
+                    )
+                }
             )
-
-            obj.put(
-                "name",
-                account.name
-            )
-
-            obj.put(
-                "url",
-                account.url
-            )
-
-            arr.put(obj)
         }
 
         prefs.edit()
             .putString(
                 "list",
-                arr.toString()
+                array.toString()
             )
             .apply()
     }
@@ -307,59 +392,32 @@ class MainActivity : AppCompatActivity() {
                 "[]"
             ) ?: "[]"
 
-        val arr = JSONArray(raw)
+        val array =
+            JSONArray(raw)
 
-        for (i in 0 until arr.length()) {
+        for (i in 0 until array.length()) {
 
             val obj =
-                arr.getJSONObject(i)
-
-            /*
-             * নতুন account হলে saved ID পাওয়া যাবে।
-             */
-            var id =
-                obj.optString("id", "")
-
-            /*
-             * পুরোনো account-এর ID যদি না থাকে,
-             * তাহলে একবার নতুন permanent ID তৈরি হবে।
-             *
-             * এরপর saveAccounts() করলে সেটা আর বদলাবে না।
-             */
-            if (id.isEmpty()) {
-
-                id =
-                    "profile_" +
-                            System.currentTimeMillis() +
-                            "_" +
-                            i
-            }
-
-            val name =
-                obj.optString(
-                    "name",
-                    "Account ${i + 1}"
-                )
-
-            val url =
-                obj.optString(
-                    "url",
-                    "https://example.com"
-                )
+                array.getJSONObject(i)
 
             accounts.add(
                 Account(
-                    id = id,
-                    name = name,
-                    url = url
+                    id = obj.optString(
+                        "id",
+                        "page_$i"
+                    ),
+
+                    name = obj.optString(
+                        "name",
+                        "Page ${i + 1}"
+                    ),
+
+                    url = obj.optString(
+                        "url",
+                        "https://www.facebook.com/"
+                    )
                 )
             )
         }
-
-        /*
-         * পুরোনো account-এর নতুন ID-ও
-         * এখন permanently save হয়ে যাবে।
-         */
-        saveAccounts()
     }
 }
