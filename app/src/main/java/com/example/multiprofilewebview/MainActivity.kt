@@ -33,45 +33,74 @@ class MainActivity : AppCompatActivity() {
 
     private fun showHome() {
 
-        val root = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(20, 20, 20, 20)
+    val root = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding(20, 20, 20, 20)
+    }
+
+    val title = TextView(this).apply {
+        text = "My Facebook Pages"
+        textSize = 24f
+        gravity = Gravity.CENTER
+        setPadding(0, 0, 0, 15)
+    }
+
+    val addButton = Button(this).apply {
+        text = "+ ADD PAGE"
+
+        setOnClickListener {
+            showAddDialog()
         }
+    }
 
-        val title = TextView(this).apply {
-            text = "My Facebook Pages"
-            textSize = 24f
-            gravity = Gravity.CENTER
-            setPadding(0, 0, 0, 15)
-        }
+    // Profile list
+    listLayout = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+    }
 
-        val addButton = Button(this).apply {
-            text = "+ ADD PAGE"
-            setOnClickListener {
-                showAddDialog()
-            }
-        }
+    // IMPORTANT:
+    // This makes the profile list scrollable.
+    val scrollView = ScrollView(this).apply {
+        isFillViewport = true
 
-        listLayout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-        }
-
-        root.addView(title)
-        root.addView(addButton)
-
-        root.addView(
+        addView(
             listLayout,
-            LinearLayout.LayoutParams(
+            ScrollView.LayoutParams(
                 -1,
-                0,
-                1f
+                -2
             )
         )
-
-        setContentView(root)
-
-        refreshList()
     }
+
+    root.addView(
+        title,
+        LinearLayout.LayoutParams(
+            -1,
+            -2
+        )
+    )
+
+    root.addView(
+        addButton,
+        LinearLayout.LayoutParams(
+            -1,
+            -2
+        )
+    )
+
+    root.addView(
+        scrollView,
+        LinearLayout.LayoutParams(
+            -1,
+            0,
+            1f
+        )
+    )
+
+    setContentView(root)
+
+    refreshList()
+}
 
     private fun showAddDialog() {
 
