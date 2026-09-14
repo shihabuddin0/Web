@@ -98,16 +98,16 @@ class MainActivity : AppCompatActivity() {
          */
         val scrollView = ScrollView(this).apply {
 
-            isFillViewport = true
+    isFillViewport = true
 
-            addView(
-                listLayout,
-                ScrollView.LayoutParams(
-                    -1,
-                    -2
-                )
-            )
-        }
+    addView(
+        listLayout,
+        android.widget.FrameLayout.LayoutParams(
+            -1,
+            -2
+        )
+    )
+}
 
         root.addView(
             title,
