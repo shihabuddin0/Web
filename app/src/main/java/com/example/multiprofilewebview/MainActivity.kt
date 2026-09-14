@@ -19,102 +19,156 @@ data class Account(
 class MainActivity : AppCompatActivity() {
 
     private val accounts = mutableListOf<Account>()
+
     private lateinit var listLayout: LinearLayout
 
     private val prefs by lazy {
-        getSharedPreferences("accounts", Context.MODE_PRIVATE)
+        getSharedPreferences(
+            "accounts",
+            Context.MODE_PRIVATE
+        )
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
         loadAccounts()
         showHome()
     }
 
     private fun showHome() {
 
-    val root = LinearLayout(this).apply {
-        orientation = LinearLayout.VERTICAL
-        setPadding(20, 20, 20, 20)
-    }
+        val root = LinearLayout(this).apply {
 
-    val title = TextView(this).apply {
-        text = "My Facebook Pages"
-        textSize = 24f
-        gravity = Gravity.CENTER
-        setPadding(0, 0, 0, 15)
-    }
+            orientation =
+                LinearLayout.VERTICAL
 
-    val addButton = Button(this).apply {
-        text = "+ ADD PAGE"
-
-        setOnClickListener {
-            showAddDialog()
+            setPadding(
+                20,
+                20,
+                20,
+                20
+            )
         }
-    }
 
-    // Profile list
-    listLayout = LinearLayout(this).apply {
-        orientation = LinearLayout.VERTICAL
-    }
+        // TITLE
+        val title = TextView(this).apply {
 
-    // IMPORTANT:
-    // This makes the profile list scrollable.
-    val scrollView = ScrollView(this).apply {
-        isFillViewport = true
+            text =
+                "My Facebook Pages"
 
-        addView(
-            listLayout,
-            ScrollView.LayoutParams(
+            textSize = 24f
+
+            gravity =
+                Gravity.CENTER
+
+            setPadding(
+                0,
+                0,
+                0,
+                15
+            )
+        }
+
+        // ADD PAGE BUTTON
+        val addButton = Button(this).apply {
+
+            text =
+                "+ ADD PAGE"
+
+            setOnClickListener {
+
+                showAddDialog()
+            }
+        }
+
+        // PROFILE LIST
+        listLayout = LinearLayout(this).apply {
+
+            orientation =
+                LinearLayout.VERTICAL
+        }
+
+        /*
+         * IMPORTANT:
+         *
+         * ScrollView is used here so that
+         * unlimited profiles/pages can be
+         * viewed by scrolling.
+         */
+        val scrollView = ScrollView(this).apply {
+
+            isFillViewport = true
+
+            addView(
+                listLayout,
+                ScrollView.LayoutParams(
+                    -1,
+                    -2
+                )
+            )
+        }
+
+        root.addView(
+            title,
+            LinearLayout.LayoutParams(
                 -1,
                 -2
             )
         )
+
+        root.addView(
+            addButton,
+            LinearLayout.LayoutParams(
+                -1,
+                -2
+            )
+        )
+
+        root.addView(
+            scrollView,
+            LinearLayout.LayoutParams(
+                -1,
+                0,
+                1f
+            )
+        )
+
+        setContentView(root)
+
+        refreshList()
     }
 
-    root.addView(
-        title,
-        LinearLayout.LayoutParams(
-            -1,
-            -2
-        )
-    )
-
-    root.addView(
-        addButton,
-        LinearLayout.LayoutParams(
-            -1,
-            -2
-        )
-    )
-
-    root.addView(
-        scrollView,
-        LinearLayout.LayoutParams(
-            -1,
-            0,
-            1f
-        )
-    )
-
-    setContentView(root)
-
-    refreshList()
-}
+    // =========================================================
+    // ADD PAGE
+    // =========================================================
 
     private fun showAddDialog() {
 
         val box = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(30, 5, 30, 0)
+
+            orientation =
+                LinearLayout.VERTICAL
+
+            setPadding(
+                30,
+                5,
+                30,
+                0
+            )
         }
 
         val nameInput = EditText(this).apply {
-            hint = "Page name"
+
+            hint =
+                "Page / Profile name"
         }
 
         val urlInput = EditText(this).apply {
-            hint = "https://www.facebook.com/"
+
+            hint =
+                "https://www.facebook.com/yourpage"
+
             inputType =
                 android.text.InputType.TYPE_CLASS_TEXT or
                         android.text.InputType.TYPE_TEXT_VARIATION_URI
@@ -124,119 +178,261 @@ class MainActivity : AppCompatActivity() {
         box.addView(urlInput)
 
         AlertDialog.Builder(this)
-            .setTitle("Add Page")
+
+            .setTitle(
+                "Add Page"
+            )
+
             .setView(box)
-            .setNegativeButton("CANCEL", null)
-            .setPositiveButton("SAVE") { _, _ ->
 
-                val name = nameInput.text.toString().trim()
-                var url = urlInput.text.toString().trim()
+            .setNegativeButton(
+                "CANCEL",
+                null
+            )
 
-                if (name.isEmpty() || url.isEmpty()) {
+            .setPositiveButton(
+                "SAVE"
+            ) { _, _ ->
+
+                val name =
+                    nameInput.text
+                        .toString()
+                        .trim()
+
+                var url =
+                    urlInput.text
+                        .toString()
+                        .trim()
+
+                if (
+                    name.isEmpty() ||
+                    url.isEmpty()
+                ) {
+
                     Toast.makeText(
                         this,
                         "Name and URL required",
                         Toast.LENGTH_SHORT
                     ).show()
+
                     return@setPositiveButton
                 }
 
-                if (!url.startsWith("http://") &&
+                if (
+                    !url.startsWith("http://") &&
                     !url.startsWith("https://")
                 ) {
-                    url = "https://$url"
+
+                    url =
+                        "https://$url"
                 }
 
-                accounts.add(
+                /*
+                 * Every newly created profile gets
+                 * a permanent unique ID.
+                 */
+                val newAccount =
                     Account(
-                        id = "profile_" +
-                                System.currentTimeMillis(),
-                        name = name,
-                        url = url
+                        id =
+                            "profile_" +
+                                    System.currentTimeMillis(),
+
+                        name =
+                            name,
+
+                        url =
+                            url
                     )
+
+                accounts.add(
+                    newAccount
                 )
 
                 saveAccounts()
+
                 refreshList()
             }
+
             .show()
     }
 
-    private fun showEditDialog(index: Int) {
+    // =========================================================
+    // EDIT PAGE
+    // =========================================================
 
-        val account = accounts[index]
+    private fun showEditDialog(
+        index: Int
+    ) {
 
-        val box = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(30, 5, 30, 0)
-        }
+        val account =
+            accounts[index]
 
-        val nameInput = EditText(this).apply {
-            hint = "Page name"
-            setText(account.name)
-        }
+        val box =
+            LinearLayout(this).apply {
 
-        val urlInput = EditText(this).apply {
-            hint = "Page URL"
-            setText(account.url)
-            inputType =
-                android.text.InputType.TYPE_CLASS_TEXT or
-                        android.text.InputType.TYPE_TEXT_VARIATION_URI
-        }
+                orientation =
+                    LinearLayout.VERTICAL
+
+                setPadding(
+                    30,
+                    5,
+                    30,
+                    0
+                )
+            }
+
+        val nameInput =
+            EditText(this).apply {
+
+                hint =
+                    "Page name"
+
+                setText(
+                    account.name
+                )
+
+                setSelection(
+                    text.length
+                )
+            }
+
+        val urlInput =
+            EditText(this).apply {
+
+                hint =
+                    "Page URL"
+
+                setText(
+                    account.url
+                )
+
+                setSelection(
+                    text.length
+                )
+
+                inputType =
+                    android.text.InputType.TYPE_CLASS_TEXT or
+                            android.text.InputType.TYPE_TEXT_VARIATION_URI
+            }
 
         box.addView(nameInput)
         box.addView(urlInput)
 
         AlertDialog.Builder(this)
-            .setTitle("Edit Page")
+
+            .setTitle(
+                "Edit Page"
+            )
+
             .setView(box)
-            .setNegativeButton("CANCEL", null)
-            .setPositiveButton("SAVE") { _, _ ->
 
-                val name =
-                    nameInput.text.toString().trim()
+            .setNegativeButton(
+                "CANCEL",
+                null
+            )
 
-                var url =
-                    urlInput.text.toString().trim()
+            .setPositiveButton(
+                "SAVE"
+            ) { _, _ ->
 
-                if (name.isEmpty() || url.isEmpty()) {
+                val newName =
+                    nameInput.text
+                        .toString()
+                        .trim()
+
+                var newUrl =
+                    urlInput.text
+                        .toString()
+                        .trim()
+
+                if (
+                    newName.isEmpty() ||
+                    newUrl.isEmpty()
+                ) {
+
                     Toast.makeText(
                         this,
                         "Name and URL required",
                         Toast.LENGTH_SHORT
                     ).show()
+
                     return@setPositiveButton
                 }
 
-                if (!url.startsWith("http://") &&
-                    !url.startsWith("https://")
+                if (
+                    !newUrl.startsWith("http://") &&
+                    !newUrl.startsWith("https://")
                 ) {
-                    url = "https://$url"
+
+                    newUrl =
+                        "https://$newUrl"
                 }
 
-                accounts[index].name = name
-                accounts[index].url = url
+                /*
+                 * IMPORTANT:
+                 *
+                 * ID is NOT changed.
+                 *
+                 * Therefore existing WebView
+                 * profile/session remains attached
+                 * to this page.
+                 */
+                accounts[index].name =
+                    newName
+
+                accounts[index].url =
+                    newUrl
 
                 saveAccounts()
+
                 refreshList()
             }
+
             .show()
     }
 
-    private fun copyPage(index: Int) {
+    // =========================================================
+    // COPY PROFILE
+    // =========================================================
 
-        val source = accounts[index]
+    private fun copyPage(
+        index: Int
+    ) {
 
-        val copied = Account(
-            id = "profile_" +
-                    System.currentTimeMillis(),
-            name = source.name + " Copy",
-            url = source.url
+        val source =
+            accounts[index]
+
+        /*
+         * COPY creates a NEW profile ID.
+         *
+         * We do NOT copy Facebook private
+         * authentication/session tokens.
+         *
+         * The new profile starts with the
+         * same URL and name, then you can open
+         * Facebook and switch to the required Page.
+         */
+        val copied =
+            Account(
+
+                id =
+                    "profile_" +
+                            System.currentTimeMillis(),
+
+                name =
+                    source.name +
+                            " Copy",
+
+                url =
+                    source.url
+            )
+
+        accounts.add(
+            copied
         )
 
-        accounts.add(copied)
-
         saveAccounts()
+
         refreshList()
 
         Toast.makeText(
@@ -246,95 +442,178 @@ class MainActivity : AppCompatActivity() {
         ).show()
     }
 
-    private fun confirmDelete(index: Int) {
+    // =========================================================
+    // DELETE
+    // =========================================================
 
-        val account = accounts[index]
+    private fun confirmDelete(
+        index: Int
+    ) {
+
+        val account =
+            accounts[index]
 
         AlertDialog.Builder(this)
-            .setTitle("Delete Page")
+
+            .setTitle(
+                "Delete Page"
+            )
+
             .setMessage(
                 "Delete ${account.name}?"
             )
+
             .setNegativeButton(
                 "CANCEL",
                 null
             )
+
             .setPositiveButton(
                 "DELETE"
             ) { _, _ ->
 
-                accounts.removeAt(index)
+                accounts.removeAt(
+                    index
+                )
 
                 saveAccounts()
+
                 refreshList()
             }
+
             .show()
     }
 
-    private fun openPage(index: Int) {
+    // =========================================================
+    // OPEN WEBVIEW
+    // =========================================================
+
+    private fun openPage(
+        index: Int
+    ) {
+
+        if (
+            index < 0 ||
+            index >= accounts.size
+        ) {
+            return
+        }
+
+        val account =
+            accounts[index]
 
         startActivity(
+
             Intent(
                 this,
                 WebViewActivity::class.java
             )
+
                 .putExtra(
                     "page_index",
                     index
                 )
+
                 .putExtra(
                     "profile_id",
-                    accounts[index].id
+                    account.id
                 )
         )
     }
+
+    // =========================================================
+    // REFRESH LIST
+    // =========================================================
 
     private fun refreshList() {
 
         listLayout.removeAllViews()
 
-        accounts.forEachIndexed { index, account ->
+        accounts.forEachIndexed {
+                index,
+                account ->
 
-            val row = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER_VERTICAL
-                setPadding(0, 5, 0, 5)
-            }
+            val row =
+                LinearLayout(this).apply {
 
-            val open = Button(this).apply {
-                text = "${index + 1}. ${account.name}"
+                    orientation =
+                        LinearLayout.HORIZONTAL
 
-                setOnClickListener {
-                    openPage(index)
+                    gravity =
+                        Gravity.CENTER_VERTICAL
+
+                    setPadding(
+                        0,
+                        5,
+                        0,
+                        5
+                    )
                 }
-            }
 
-            val copy = Button(this).apply {
-                text = "COPY"
+            // OPEN
+            val openButton =
+                Button(this).apply {
 
-                setOnClickListener {
-                    copyPage(index)
+                    text =
+                        "${index + 1}. ${account.name}"
+
+                    setOnClickListener {
+
+                        openPage(
+                            index
+                        )
+                    }
                 }
-            }
 
-            val edit = Button(this).apply {
-                text = "EDIT"
+            // COPY
+            val copyButton =
+                Button(this).apply {
 
-                setOnClickListener {
-                    showEditDialog(index)
+                    text =
+                        "COPY"
+
+                    setOnClickListener {
+
+                        copyPage(
+                            index
+                        )
+                    }
                 }
-            }
 
-            val delete = Button(this).apply {
-                text = "DELETE"
+            // EDIT
+            val editButton =
+                Button(this).apply {
 
-                setOnClickListener {
-                    confirmDelete(index)
+                    text =
+                        "EDIT"
+
+                    setOnClickListener {
+
+                        showEditDialog(
+                            index
+                        )
+                    }
                 }
-            }
+
+            // DELETE
+            val deleteButton =
+                Button(this).apply {
+
+                    text =
+                        "DELETE"
+
+                    setOnClickListener {
+
+                        confirmDelete(
+                            index
+                        )
+                    }
+                }
 
             row.addView(
-                open,
+
+                openButton,
+
                 LinearLayout.LayoutParams(
                     0,
                     -2,
@@ -342,25 +621,65 @@ class MainActivity : AppCompatActivity() {
                 )
             )
 
-            row.addView(copy)
-            row.addView(edit)
-            row.addView(delete)
+            row.addView(
+                copyButton,
+                LinearLayout.LayoutParams(
+                    -2,
+                    -2
+                )
+            )
 
-            listLayout.addView(row)
+            row.addView(
+                editButton,
+                LinearLayout.LayoutParams(
+                    -2,
+                    -2
+                )
+            )
+
+            row.addView(
+                deleteButton,
+                LinearLayout.LayoutParams(
+                    -2,
+                    -2
+                )
+            )
+
+            listLayout.addView(
+                row
+            )
         }
     }
 
+    // =========================================================
+    // SAVE
+    // =========================================================
+
     private fun saveAccounts() {
 
-        val array = JSONArray()
+        val array =
+            JSONArray()
 
         accounts.forEach {
 
             array.put(
+
                 JSONObject().apply {
-                    put("id", it.id)
-                    put("name", it.name)
-                    put("url", it.url)
+
+                    put(
+                        "id",
+                        it.id
+                    )
+
+                    put(
+                        "name",
+                        it.name
+                    )
+
+                    put(
+                        "url",
+                        it.url
+                    )
                 }
             )
         }
@@ -373,6 +692,10 @@ class MainActivity : AppCompatActivity() {
             .apply()
     }
 
+    // =========================================================
+    // LOAD
+    // =========================================================
+
     private fun loadAccounts() {
 
         accounts.clear()
@@ -383,51 +706,63 @@ class MainActivity : AppCompatActivity() {
                 "[]"
             ) ?: "[]"
 
-        val array = JSONArray(raw)
+        val array =
+            JSONArray(raw)
 
-        for (i in 0 until array.length()) {
+        for (
+            i in 0 until array.length()
+        ) {
 
             val obj =
                 array.getJSONObject(i)
 
-            accounts.add(
-                Account(
-                    id = obj.optString(
-                        "id",
-                        "profile_$i"
-                    ),
-                    name = obj.optString(
-                        "name",
-                        "Page ${i + 1}"
-                    ),
-                    url = obj.optString(
-                        "url",
-                        "https://www.facebook.com/"
+            /*
+             * IMPORTANT COMPATIBILITY:
+             *
+             * Old accounts created by your previous
+             * app did not save ID.
+             *
+             * We keep their old ID as:
+             *
+             * legacy_0
+             * legacy_1
+             * legacy_2
+             *
+             * This prevents changing their old
+             * WebView profile names during update.
+             */
+            val id =
+                if (obj.has("id")) {
+
+                    obj.optString(
+                        "id"
                     )
+
+                } else {
+
+                    "legacy_$i"
+                }
+
+            accounts.add(
+
+                Account(
+
+                    id =
+                        id,
+
+                    name =
+                        obj.optString(
+                            "name",
+                            "Page ${i + 1}"
+                        ),
+
+                    url =
+                        obj.optString(
+                            "url",
+                            "https://www.facebook.com/"
+                        )
                 )
             )
-        }
-
-        // Fix old accounts that didn't have permanent IDs
-        var changed = false
-
-        accounts.forEachIndexed { index, account ->
-
-            if (account.id == "profile_$index") {
-
-                accounts[index] = account.copy(
-                    id = "profile_" +
-                            System.currentTimeMillis() +
-                            "_" +
-                            index
-                )
-
-                changed = true
-            }
-        }
-
-        if (changed) {
-            saveAccounts()
         }
     }
 }
