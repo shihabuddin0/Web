@@ -1,8 +1,8 @@
 package com.example.multiprofilewebview
 
-import android.content.Intent
 import android.os.Bundle
 import android.view.Gravity
+import android.webkit.CookieManager
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Button
@@ -15,18 +15,55 @@ import androidx.webkit.WebViewFeature
 class WebViewActivity : AppCompatActivity() {
 
     private lateinit var webView: WebView
-    private lateinit var homeUrl: String
 
-    override fun onCreate(savedInstanceState: Bundle?) {
+    private lateinit var previousButton: Button
+    private lateinit var nextButton: Button
+    private lateinit var pageTitle: Button
+
+    private var currentIndex = 0
+
+    private val accounts = mutableListOf<Account>()
+
+    private val prefs by lazy {
+        getSharedPreferences(
+            "accounts",
+            MODE_PRIVATE
+        )
+    }
+
+    private val sharedProfile =
+        MainActivity.SHARED_PROFILE
+
+    override fun onCreate(
+        savedInstanceState: Bundle?
+    ) {
         super.onCreate(savedInstanceState)
 
-        homeUrl = intent.getStringExtra("url") ?: "https://example.com"
+        loadAccounts()
 
-        val profileId = intent.getStringExtra("profile_id") ?: "default"
-        val profileName = "account_profile_$profileId"
+        currentIndex =
+            intent.getIntExtra(
+                "page_index",
+                0
+            )
 
-        // Check WebView Multi-Profile support
-        if (!WebViewFeature.isFeatureSupported(WebViewFeature.MULTI_PROFILE)) {
+        if (accounts.isEmpty()) {
+
+            finish()
+            return
+        }
+
+        if (currentIndex < 0 ||
+            currentIndex >= accounts.size
+        ) {
+            currentIndex = 0
+        }
+
+        if (!WebViewFeature.isFeatureSupported(
+                WebViewFeature.MULTI_PROFILE
+            )
+        ) {
+
             Toast.makeText(
                 this,
                 "Your Android WebView does not support separate profiles.",
@@ -37,107 +74,327 @@ class WebViewActivity : AppCompatActivity() {
             return
         }
 
-        // Create WebView
+        createWebView()
+        createLayout()
+
+        loadCurrentPage()
+    }
+
+    private fun createWebView() {
+
         webView = WebView(this)
 
-        // Set separate WebView profile
-        WebViewCompat.setProfile(webView, profileName)
+        /*
+         * IMPORTANT:
+         *
+         * Every Facebook Page uses the SAME
+         * WebView profile.
+         *
+         * Therefore Facebook login session
+         * is shared between the Pages.
+         */
+        WebViewCompat.setProfile(
+            webView,
+            sharedProfile
+        )
 
-        // WebView settings
-        webView.settings.javaScriptEnabled = true
-        webView.settings.domStorageEnabled = true
-        webView.settings.databaseEnabled = true
-        webView.settings.loadsImagesAutomatically = true
-        webView.settings.cacheMode =
-            android.webkit.WebSettings.LOAD_DEFAULT
+        webView.settings.apply {
 
-        webView.webViewClient = WebViewClient()
+            javaScriptEnabled = true
 
-        // Main layout
-        val root = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
+            domStorageEnabled = true
+
+            databaseEnabled = true
+
+            loadsImagesAutomatically = true
+
+            cacheMode =
+                android.webkit.WebSettings.LOAD_DEFAULT
+
+            setSupportZoom(false)
+
+            builtInZoomControls = false
+
+            displayZoomControls = false
+
+            javaScriptCanOpenWindowsAutomatically =
+                true
         }
 
-        // Top button bar
-        val bar = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-        }
+        webView.webViewClient =
+            WebViewClient()
 
-        // HOME BUTTON
-        val home = Button(this).apply {
-            text = "Home"
+        CookieManager
+            .getInstance()
+            .setAcceptCookie(true)
+    }
 
-            setOnClickListener {
+    private fun createLayout() {
 
-                /*
-                 * Home চাপলে WebView থেকে বের হয়ে
-                 * MainActivity-এর My Web Profiles screen-এ ফিরে যাবে।
-                 */
-                finish()
+        val root =
+            LinearLayout(this).apply {
+
+                orientation =
+                    LinearLayout.VERTICAL
             }
-        }
 
-        // REFRESH BUTTON
-        val refresh = Button(this).apply {
-            text = "Refresh"
+        /*
+         * TOP BAR
+         */
+        val topBar =
+            LinearLayout(this).apply {
 
-            setOnClickListener {
-                webView.reload()
+                orientation =
+                    LinearLayout.HORIZONTAL
+
+                gravity =
+                    Gravity.CENTER_VERTICAL
             }
-        }
 
-        // Add buttons
-        bar.addView(
-            home,
+        previousButton =
+            Button(this).apply {
+
+                text = "←"
+
+                setOnClickListener {
+
+                    goPrevious()
+                }
+            }
+
+        pageTitle =
+            Button(this).apply {
+
+                text = "Page"
+
+                isAllCaps = false
+
+                setOnClickListener {
+
+                    /*
+                     * Pressing page name also
+                     * opens the current page again.
+                     */
+                    loadCurrentPage()
+                }
+            }
+
+        nextButton =
+            Button(this).apply {
+
+                text = "→"
+
+                setOnClickListener {
+
+                    goNext()
+                }
+            }
+
+        topBar.addView(
+            previousButton,
+            LinearLayout.LayoutParams(
+                70,
+                -2
+            )
+        )
+
+        topBar.addView(
+            pageTitle,
             LinearLayout.LayoutParams(
                 0,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
+                -2,
                 1f
             )
         )
 
-        bar.addView(
-            refresh,
+        topBar.addView(
+            nextButton,
+            LinearLayout.LayoutParams(
+                70,
+                -2
+            )
+        )
+
+        /*
+         * SECOND BAR
+         */
+        val bottomBar =
+            LinearLayout(this).apply {
+
+                orientation =
+                    LinearLayout.HORIZONTAL
+
+                gravity =
+                    Gravity.CENTER_VERTICAL
+            }
+
+        val homeButton =
+            Button(this).apply {
+
+                text = "HOME"
+
+                setOnClickListener {
+
+                    /*
+                     * Return to MainActivity.
+                     */
+                    finish()
+                }
+            }
+
+        val refreshButton =
+            Button(this).apply {
+
+                text = "REFRESH"
+
+                setOnClickListener {
+
+                    webView.reload()
+                }
+            }
+
+        bottomBar.addView(
+            homeButton,
             LinearLayout.LayoutParams(
                 0,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
+                -2,
                 1f
             )
         )
 
-        // Add top bar
+        bottomBar.addView(
+            refreshButton,
+            LinearLayout.LayoutParams(
+                0,
+                -2,
+                1f
+            )
+        )
+
         root.addView(
-            bar,
+            topBar,
             LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
+                -1,
+                -2
             )
         )
 
-        // Add WebView
+        root.addView(
+            bottomBar,
+            LinearLayout.LayoutParams(
+                -1,
+                -2
+            )
+        )
+
         root.addView(
             webView,
             LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
+                -1,
                 0,
                 1f
             )
         )
 
         setContentView(root)
-
-        // Open selected account website
-        webView.loadUrl(homeUrl)
     }
 
-    // Android back button
-    @Deprecated("Deprecated in Java")
+    private fun loadCurrentPage() {
+
+        if (accounts.isEmpty()) {
+            return
+        }
+
+        val account =
+            accounts[currentIndex]
+
+        pageTitle.text =
+            "${currentIndex + 1}. ${account.name}"
+
+        webView.loadUrl(
+            account.url
+        )
+
+        updateNavigationButtons()
+    }
+
+    private fun goPrevious() {
+
+        if (currentIndex > 0) {
+
+            currentIndex--
+
+            loadCurrentPage()
+        }
+    }
+
+    private fun goNext() {
+
+        if (currentIndex < accounts.size - 1) {
+
+            currentIndex++
+
+            loadCurrentPage()
+        }
+    }
+
+    private fun updateNavigationButtons() {
+
+        previousButton.isEnabled =
+            currentIndex > 0
+
+        nextButton.isEnabled =
+            currentIndex <
+                    accounts.size - 1
+    }
+
+    private fun loadAccounts() {
+
+        accounts.clear()
+
+        val raw =
+            prefs.getString(
+                "list",
+                "[]"
+            ) ?: "[]"
+
+        val array =
+            org.json.JSONArray(raw)
+
+        for (i in 0 until array.length()) {
+
+            val obj =
+                array.getJSONObject(i)
+
+            accounts.add(
+                Account(
+                    id = obj.optString(
+                        "id",
+                        "page_$i"
+                    ),
+
+                    name = obj.optString(
+                        "name",
+                        "Page ${i + 1}"
+                    ),
+
+                    url = obj.optString(
+                        "url",
+                        "https://www.facebook.com/"
+                    )
+                )
+            )
+        }
+    }
+
     override fun onBackPressed() {
 
         if (webView.canGoBack()) {
+
             webView.goBack()
+
         } else {
+
             super.onBackPressed()
         }
     }
@@ -145,7 +402,9 @@ class WebViewActivity : AppCompatActivity() {
     override fun onDestroy() {
 
         if (::webView.isInitialized) {
+
             webView.stopLoading()
+
             webView.destroy()
         }
 
